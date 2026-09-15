@@ -29,7 +29,9 @@ CFLAGS := \
 
 C_SOURCES := \
 	kernel/kernel.c \
-    kernel/arch/x86_64/interrupts.c
+	kernel/arch/x86_64/interrupts.c \
+	kernel/arch/x86_64/pic.c   \
+
 
 ASM_SOURCES := \
 	boot/boot.S \

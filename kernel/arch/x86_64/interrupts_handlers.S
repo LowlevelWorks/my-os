@@ -9,3 +9,6 @@
 invalid_opcode_handler:
     cli 
     hlt
+
+keyboard_handler:
+    iretq

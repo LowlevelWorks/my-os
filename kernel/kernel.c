@@ -1,5 +1,6 @@
 #include<stdint.h>
 #include "arch/x86_64/interrupts.h"
+#include "arch/x86_64/pic.h"
 
 void print(const char *str)
 {
@@ -13,9 +14,13 @@ void print(const char *str)
 
 
 void kernel_main(void){
-    print("Kernel started");
 
     idt_init();
+    pic_remap();
+
+
+    print("Kernel started");
+
 
      while(1) {
       __asm__ volatile("hlt");

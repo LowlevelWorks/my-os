@@ -3,6 +3,7 @@
 
 
 extern void invalid_opcode_handler(void);
+extern void keyboard_handler(void);
 
 static struct idt_entry idt[IDT_MAX_DESCRIPTORS];
 static struct idt_descriptor idt_descriptor;
@@ -43,6 +44,10 @@ void idt_init(void){
 
   
     idt_set_gate(6, (uint64_t)invalid_opcode_handler, 0x8E);
+
+    // IRQ1 = keyboard = vector 33
+    idt_set_gate(33,(uint64_t)keyboard_handler);
+
     load_idt();
 
 }
