@@ -1,10 +1,3 @@
-1. Create a section called .multiboot 
-2. Make it 4-byte aligned 
-3. Put Multiboot magic number 
-4. Put flags = 0
-5. Put checksum so that: 
-   magic + flags + checksum = 0
-
 ## A linker takes one or more object files, resolves references between them , combines thier sections, assigns
  address/layout, and produce the final executable or kernel image.
 
