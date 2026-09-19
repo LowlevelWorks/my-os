@@ -20,7 +20,9 @@ CFLAGS := \
 	-mno-red-zone \
 	-Wall \
 	-Wextra \
-	-Ikernel
+	-Ikernel \
+	-Ikernel/shell \
+	-Ikernel/arch/x86_64
 
 
 # ==========================================
@@ -31,6 +33,10 @@ C_SOURCES := \
 	kernel/kernel.c \
 	kernel/arch/x86_64/interrupts.c \
 	kernel/arch/x86_64/pic.c   \
+	kernel/drivers/keyboard/keyboard.c \
+	kernel/drivers/keyboard/keyboard_map.c \
+	kernel/drivers/terminal/terminal.c \
+	kernel/shell/shell.c 
 
 
 ASM_SOURCES := \
@@ -101,7 +107,7 @@ iso: $(KERNEL)
 # ==========================================
 
 run: iso
-	$(QEMU) -cdrom $(ISO)
+	$(QEMU) -cdrom $(ISO) -D qemu.log -d int,cpu_reset
 
 
 # ==========================================
