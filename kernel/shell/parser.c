@@ -1,4 +1,5 @@
 #include "parser.h"
+#include <stddef.h>
 
 int shell_parse_command(char *input, int *argc, char *argv[]) {
   *argc = 0;
@@ -27,6 +28,6 @@ int shell_parse_command(char *input, int *argc, char *argv[]) {
       input++;
     }
   }
-  argv[*argc] = 0;
+  argv[*argc] = NULL;
   return 1;
 }

@@ -1,15 +1,20 @@
 #include "shell.h"
+#include "commands/commands.h"
 #include "drivers/keyboard/keyboard.h"
 #include "drivers/terminal/terminal.h"
-#include "lib/string.h"
 #include "parser.h"
 
 #define SHELL_BUFFER_SIZE 256
+#define SHELL_PROMPT_COLUMN 2
 
 static char input_buffer[SHELL_BUFFER_SIZE];
-static unsigned input_length = 0;
+static unsigned int input_length = 0;
+static unsigned int cursor_position = 0;
 
-void shell_init(void) { input_length = 0; }
+void shell_init(void) {
+  input_length = 0;
+  cursor_position = 0;
+}
 
 static void shell_process_command(void) {
   char *argv[SHELL_MAX_ARGUMENTS];
@@ -23,49 +28,54 @@ static void shell_process_command(void) {
   if (argc == 0)
     return;
 
-  if (string_equals(argv[0], "help")) {
-    terminal_write("Available commands:\n");
-    terminal_write("help\n");
-    terminal_write("echo\n");
-    terminal_write("clear\n");
-    return;
-  }
-
-  if (string_equals(argv[0], "echo")) {
-    for (int i = 1; i < argc; i++) {
-      terminal_write(argv[i]);
-
-      if (i + 1 < argc) {
-        terminal_putchar(' ');
-      }
-    }
-    terminal_putchar('\n');
-    return;
-  }
-
-  if (string_equals(argv[0], "clear")) {
-    terminal_clear();
-    return;
-  }
-
-  terminal_write("Unknown command: ");
-  terminal_write(input_buffer);
-  terminal_write("\n");
+  shell_execute_command(argc, argv);
 }
 
 void shell_handle_key(uint16_t key) {
   if (key < 0x100) {
     if (input_length < SHELL_BUFFER_SIZE - 1) {
-      input_buffer[input_length++] = (char)(key);
-      terminal_putchar((char)key);
+      unsigned int old_length = input_length;
+
+      for (unsigned int i = input_length; i > cursor_position; i--) {
+        input_buffer[i] = input_buffer[i - 1];
+      }
+      input_buffer[cursor_position] = (char)(key);
+      input_length++;
+      cursor_position++;
+      terminal_draw_line(SHELL_PROMPT_COLUMN, input_buffer, input_length,
+                         old_length, cursor_position);
     }
     return;
   }
 
   if (key == KEY_BACKSPACE) {
-    if (input_length > 0) {
+    if (cursor_position > 0) {
+      unsigned int old_length = input_length;
+      for (unsigned int i = cursor_position - 1; i < input_length - 1; i++) {
+        input_buffer[i] = input_buffer[i + 1];
+      }
+
       input_length--;
-      terminal_backspace();
+      cursor_position--;
+      terminal_draw_line(SHELL_PROMPT_COLUMN, input_buffer, input_length,
+                         old_length, cursor_position);
+    }
+
+    return;
+  }
+
+  if (key == KEY_DELETE) {
+    if (cursor_position < input_length) {
+      unsigned int old_length = input_length;
+
+      for (unsigned int i = cursor_position; i < input_length - 1; i++) {
+        input_buffer[i] = input_buffer[i + 1];
+      }
+
+      input_length--;
+
+      terminal_draw_line(SHELL_PROMPT_COLUMN, input_buffer, input_length,
+                         old_length, cursor_position);
     }
 
     return;
@@ -76,7 +86,36 @@ void shell_handle_key(uint16_t key) {
     input_buffer[input_length] = '\0';
     shell_process_command();
     input_length = 0;
+    cursor_position = 0;
     terminal_write("> ");
+    return;
+  }
+
+  if (key == KEY_ARROW_LEFT) {
+    if (cursor_position > 0) {
+      cursor_position--;
+      terminal_set_cursor(SHELL_PROMPT_COLUMN + cursor_position);
+    }
+    return;
+  }
+
+  if (key == KEY_ARROW_RIGHT) {
+    if (cursor_position < input_length) {
+      cursor_position++;
+      terminal_set_cursor(SHELL_PROMPT_COLUMN + cursor_position);
+    }
+    return;
+  }
+
+  if (key == KEY_HOME) {
+    cursor_position = 0;
+    terminal_set_cursor(SHELL_PROMPT_COLUMN + cursor_position);
+    return;
+  }
+
+  if (key == KEY_END) {
+    cursor_position = input_length;
+    terminal_set_cursor(SHELL_PROMPT_COLUMN + cursor_position);
     return;
   }
 }

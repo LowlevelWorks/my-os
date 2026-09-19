@@ -18,8 +18,7 @@ void kernel_main(void) {
 
   shell_init();
 
-  terminal_write("Kernel started: \n\n");
-  terminal_write("OS > ");
+  terminal_write("> ");
 
   enable_interrupts();
 

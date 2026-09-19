@@ -3,6 +3,9 @@
 -fno-stack-protector
 -fno-pie
 -mno-red-zone
+-target
+x86_64-unknown-elf
+--gcc-toolchain=/opt/homebrew
 -Ikernel
 -Ikernel/shell
 -Ikernel/arch/x86_64

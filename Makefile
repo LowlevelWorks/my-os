@@ -40,7 +40,12 @@ C_SOURCES := \
 	kernel/drivers/terminal/terminal.c \
 	kernel/shell/shell.c \
 	kernel/shell/parser.c \
-    kernel/lib/string.c
+        kernel/lib/string.c   \
+	kernel/shell/commands/commands.c \
+	kernel/shell/commands/help.c \
+	kernel/shell/commands/echo.c \
+	kernel/shell/commands/clear.c 
+
 
 
 ASM_SOURCES := \
