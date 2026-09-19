@@ -4,6 +4,14 @@
 
 Port I/O allows the CPU to communicate with hardware devices through I/O ports.
 
+
+x86 CPUs have a special I/O adress spaces separate from normal memory.
+1. Port 0x20 -> Master PIC command
+2. Port 0x21 -> Master PIC data 
+3. Port 0x60 -> Keyboard data 
+4. Port 0xA0 -> Slave PIC command
+5. Port 0xA1 -> Slave PIC data
+
 In x86, the `in` and `out` instructions are used for this purpose.
 
 ---

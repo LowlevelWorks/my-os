@@ -1,28 +1,35 @@
-#include<stdint.h>
+#include <stdint.h>
+
 #include "arch/x86_64/interrupts.h"
 #include "arch/x86_64/pic.h"
+#include "drivers/keyboard/keyboard.h"
+#include "drivers/terminal/terminal.h"
+#include "shell/shell.h"
 
-void print(const char *str)
-{
-    volatile char *video = (volatile char *)0xB8000;
+static void enable_interrupts(void) { __asm__ volatile("sti"); }
 
-    while (*str) {
-        *video++ = *str++;
-        *video++ = 0x07;
+void kernel_main(void) {
+  terminal_init();
+
+  idt_init();
+
+  pic_initialize();
+  pic_unmask_irq(1);
+
+  shell_init();
+
+  terminal_write("Kernel started: \n\n");
+  terminal_write("OS > ");
+
+  enable_interrupts();
+
+  while (1) {
+    if (keyboard_has_input()) {
+      uint16_t key = keyboard_getkey();
+
+      shell_handle_key(key);
     }
-}
 
-
-void kernel_main(void){
-
-    idt_init();
-    pic_remap();
-
-
-    print("Kernel started");
-
-
-     while(1) {
-      __asm__ volatile("hlt");
-     }
+    __asm__ volatile("hlt");
+  }
 }
