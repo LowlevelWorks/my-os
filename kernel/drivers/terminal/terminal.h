@@ -5,5 +5,6 @@ void terminal_init(void);
 void terminal_putchar(char c);
 void terminal_backspace(void);
 void terminal_write(const char *str);
+void terminal_clear(void);
 
 #endif

@@ -1,0 +1,8 @@
+-std=gnu11
+-ffreestanding
+-fno-stack-protector
+-fno-pie
+-mno-red-zone
+-Ikernel
+-Ikernel/shell
+-Ikernel/arch/x86_64

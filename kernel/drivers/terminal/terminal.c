@@ -63,3 +63,13 @@ void terminal_write(const char *str) {
     str++;
   }
 }
+
+void terminal_clear(void) {
+  for (unsigned int y = 0; y < VGA_HEIGHT; y++) {
+    for (unsigned int x = 0; x < VGA_WIDTH; x++) {
+      VGA_MEMORY[y * VGA_WIDTH + x] = ((uint16_t)color << 8) | ' ';
+    }
+  }
+  row = 0;
+  column = 0;
+}

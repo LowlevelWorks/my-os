@@ -22,7 +22,9 @@ CFLAGS := \
 	-Wextra \
 	-Ikernel \
 	-Ikernel/shell \
-	-Ikernel/arch/x86_64
+	-Ikernel/arch/x86_64 \
+	-MMD \
+	-MP
 
 
 # ==========================================
@@ -36,7 +38,9 @@ C_SOURCES := \
 	kernel/drivers/keyboard/keyboard.c \
 	kernel/drivers/keyboard/keyboard_map.c \
 	kernel/drivers/terminal/terminal.c \
-	kernel/shell/shell.c 
+	kernel/shell/shell.c \
+	kernel/shell/parser.c \
+    kernel/lib/string.c
 
 
 ASM_SOURCES := \
