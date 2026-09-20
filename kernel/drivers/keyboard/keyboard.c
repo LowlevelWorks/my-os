@@ -240,6 +240,15 @@ void keyboard_handler(void) {
   char c = scancode_to_char(scancode);
 
   if (c) {
+    if (ctrl_pressed && (c == 'c' || c == 'C')) {
+      push_key(KEY_CTRL_C);
+      return;
+    }
+
+    if (ctrl_pressed && (c == 'l' || c == 'L')) {
+      push_key(KEY_CTRL_L);
+      return;
+    }
     push_key((uint16_t)c);
   }
 }

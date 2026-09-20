@@ -1,0 +1,9 @@
+#ifndef SHELL_CONFIG_H
+#define SHELL_CONFIG_H
+
+#define SHELL_BUFFER_SIZE 256
+#define SHELL_HISTORY_SIZE 16
+#define SHELL_PROMPT "> "
+#define SHELL_PROMPT_COLUMN 2
+
+#endif

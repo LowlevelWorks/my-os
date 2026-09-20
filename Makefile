@@ -44,7 +44,8 @@ C_SOURCES := \
 	kernel/shell/commands/commands.c \
 	kernel/shell/commands/help.c \
 	kernel/shell/commands/echo.c \
-	kernel/shell/commands/clear.c 
+	kernel/shell/commands/clear.c \
+	kernel/shell/history.c       
 
 
 

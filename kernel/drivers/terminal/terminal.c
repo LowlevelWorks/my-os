@@ -14,6 +14,8 @@ static unsigned int row = 0;
 static unsigned int column = 0;
 static uint8_t color = DEFAULT_COLOR;
 
+unsigned int terminal_get_row() { return row; }
+
 static void terminal_update_hardware_cursor(void) {
   uint16_t position = row * VGA_WIDTH + column;
 
@@ -24,7 +26,7 @@ static void terminal_update_hardware_cursor(void) {
   outb(VGA_DATA_PORT, (position >> 8) & 0xFF);
 }
 
-static void terminal_scroll(void) {
+void terminal_scroll(void) {
   for (unsigned int y = 1; y < VGA_HEIGHT; y++) {
     for (unsigned int x = 0; x < VGA_WIDTH; x++) {
       VGA_MEMORY[(y - 1) * VGA_WIDTH + x] = VGA_MEMORY[y * VGA_WIDTH + x];
@@ -93,6 +95,14 @@ void terminal_backspace(void) {
   terminal_update_hardware_cursor();
 }
 
+void terminal_put_at(unsigned int row, unsigned int column, char c) {
+  if (row >= VGA_HEIGHT || column >= VGA_WIDTH) {
+    return;
+  }
+
+  VGA_MEMORY[row * VGA_WIDTH + column] = ((uint16_t)color << 8) | (uint8_t)c;
+}
+
 void terminal_write(const char *str) {
   while (*str) {
     terminal_putchar(*str);
@@ -119,26 +129,14 @@ void terminal_set_cursor(unsigned int new_column) {
   terminal_update_hardware_cursor();
 }
 
-void terminal_draw_line(unsigned int start_column, const char *str,
-                        unsigned int length, unsigned int old_length,
-                        unsigned int cursor_position) {
-  terminal_set_cursor(start_column);
-
-  unsigned int clear_length = old_length;
-
-  if (length > clear_length) {
-    clear_length = length;
+void terminal_move_cursor_row(int offset) {
+  int new_row = (int)row + offset;
+  if (new_row < 0) {
+    new_row = 0;
   }
-
-  for (unsigned int i = 0; i < clear_length; i++) {
-    terminal_putchar(' ');
+  if (new_row >= VGA_HEIGHT) {
+    new_row = VGA_HEIGHT - 1;
   }
-
-  terminal_set_cursor(start_column);
-
-  for (unsigned int i = 0; i < length; i++) {
-    terminal_putchar(str[i]);
-  }
-
-  terminal_set_cursor(start_column + cursor_position);
+  row = (unsigned int)new_row;
+  terminal_update_hardware_cursor();
 }

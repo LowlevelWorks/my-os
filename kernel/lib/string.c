@@ -10,3 +10,12 @@ int string_equals(const char *a, const char *b) {
   }
   return *a == *b;
 }
+
+void string_copy(char *destination, const char *source) {
+  while (*source) {
+    *destination = *source;
+    destination++;
+    source++;
+  }
+  *destination = '\0';
+}

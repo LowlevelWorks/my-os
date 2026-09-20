@@ -17,8 +17,7 @@ void kernel_main(void) {
   pic_unmask_irq(1);
 
   shell_init();
-
-  terminal_write("> ");
+  shell_print_prompt();
 
   enable_interrupts();
 
