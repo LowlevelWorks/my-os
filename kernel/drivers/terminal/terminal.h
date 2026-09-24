@@ -1,6 +1,8 @@
 #ifndef TERMINAL_H
 #define TERMINAL_H
 
+#include <stdint.h>
+
 #define TERMINAL_WIDTH 80
 #define TERMINAL_HEIGHT 25
 
@@ -8,6 +10,8 @@ void terminal_init(void);
 void terminal_putchar(char c);
 void terminal_backspace(void);
 void terminal_write(const char *str);
+void terminal_write_uint(uint64_t value);
+void terminal_write_hex(uint64_t value);
 void terminal_clear(void);
 void terminal_set_cursor(unsigned int column);
 unsigned int terminal_get_row(void);

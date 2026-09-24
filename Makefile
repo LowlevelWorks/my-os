@@ -45,7 +45,11 @@ C_SOURCES := \
 	kernel/shell/commands/help.c \
 	kernel/shell/commands/echo.c \
 	kernel/shell/commands/clear.c \
-	kernel/shell/history.c       
+	kernel/shell/history.c        \
+	kernel/memory/physical_memory.c \
+	kernel/memory/paging.c         \
+	kernel/memory/frame.c         \
+        kernel/arch/x86_64/context.c
 
 
 
@@ -117,7 +121,9 @@ iso: $(KERNEL)
 # ==========================================
 
 run: iso
-	$(QEMU) -cdrom $(ISO) -D qemu.log -d int,cpu_reset
+	$(QEMU) -cdrom $(ISO)
+debug: iso
+	$(QEMU) -cdrom $(ISO) -d int,cpu_reset,guest_errors  -D qemu.log -no-reboot -no-shutdown
 
 
 # ==========================================

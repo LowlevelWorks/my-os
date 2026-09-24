@@ -110,6 +110,35 @@ void terminal_write(const char *str) {
   }
 }
 
+void terminal_write_uint(uint64_t value) {
+  char buffer[20];
+  unsigned int index = 0;
+
+  if (value == 0) {
+    terminal_putchar('0');
+    return;
+  }
+
+  while (value > 0) {
+    buffer[index++] = '0' + (value % 10);
+    value /= 10;
+  }
+
+  while (index > 0) {
+    terminal_putchar(buffer[--index]);
+  }
+}
+
+void terminal_write_hex(uint64_t value) {
+  static const char hex[] = "0123456789ABCDEF";
+
+  terminal_write("0x");
+
+  for (int shift = 60; shift >= 0; shift -= 4) {
+    terminal_putchar(hex[(value >> shift) & 0xF]);
+  }
+}
+
 void terminal_clear(void) {
   for (unsigned int y = 0; y < VGA_HEIGHT; y++) {
     for (unsigned int x = 0; x < VGA_WIDTH; x++) {
