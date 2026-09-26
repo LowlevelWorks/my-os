@@ -22,9 +22,11 @@ CFLAGS := \
 	-Wextra \
 	-Ikernel \
 	-Ikernel/shell \
+	-Ikernel/memory \
 	-Ikernel/arch/x86_64 \
 	-MMD \
-	-MP
+	-MP  \
+	-mcmodel=kernel
 
 
 # ==========================================
@@ -47,9 +49,9 @@ C_SOURCES := \
 	kernel/shell/commands/clear.c \
 	kernel/shell/history.c        \
 	kernel/memory/physical_memory.c \
-	kernel/memory/paging.c         \
-	kernel/memory/frame.c         \
-        kernel/arch/x86_64/context.c
+	kernel/memory/frame.c          \
+	kernel/memory/memblock.c   \
+	kernel/memory/buddy.c
 
 
 
@@ -101,7 +103,6 @@ $(BUILD_DIR)/%.o: %.S
 $(KERNEL): $(OBJECTS) linker.ld
 	@mkdir -p $(dir $@)
 	$(LD) -T linker.ld -o $@ $(OBJECTS)
-
 
 # ==========================================
 # Create bootable ISO
