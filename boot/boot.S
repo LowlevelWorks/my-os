@@ -14,7 +14,7 @@
 ## need to store an intial value for
 ##--------------------------------------------------------
 
-.section .bss
+.section .boot.bss, "aw", @nobits
 
 .align 4096
 pml4_table:
@@ -26,6 +26,14 @@ pdpt_table:
 
 .align 4096
 pd_table:
+    .skip 4096
+
+.align 4096
+high_pdpt_table:
+    .skip 4096
+
+.align 4096
+high_pd_table:
     .skip 4096
 
 
@@ -42,6 +50,10 @@ idt:
 
 idt_end:
 
+multiboot_info_address:
+.long 0
+
+
 
 ## ---------------------------------
 ## 32-BIT ENTRY
@@ -49,7 +61,7 @@ idt_end:
 ## tables, flip the cpu into 64-bit long mode, then jump into 64-bit code that calls our c kernel_main
 ##------------------------------------------
 
-.section .text
+.section .boot.text, "ax"
 .code32
 
 .global _start 
@@ -57,6 +69,8 @@ idt_end:
 
 _start:
     cli 
+
+    mov [multiboot_info_address], ebx
     #load our gdt 
     lgdt gdt_descriptor
 
@@ -77,6 +91,21 @@ _start:
     ## PD[0] -> physical address 0x00000000
     lea eax, pd_table 
     mov ebx, 0x00000083
+    mov [eax], ebx
+
+    # High-half mapping
+    lea eax, pml4_table
+    lea ebx, high_pdpt_table
+    or ebx, 0x03
+    mov [eax + 511 * 8], ebx
+
+    lea eax, high_pdpt_table
+    lea ebx, high_pd_table
+    or ebx, 0x03
+    mov [eax + 510 * 8], ebx 
+
+    lea eax, high_pd_table
+    mov ebx, 0x00200083
     mov [eax], ebx
 
      # Load PML4 into CR3
@@ -100,7 +129,7 @@ _start:
    mov cr0, eax
 
    ## Jump to long mode
-   jmp 0x08, long_mode
+   jmp 0x08:long_mode
 
 
 .code64
@@ -113,7 +142,10 @@ long_mode:
 
     lea rsp, stack_top
 
-    call kernel_main
+    mov edi, [multiboot_info_address]
+    mov rax, offset kernel_main
+    jmp rax
+    #call kernel_main
 
 hang:
     cli
