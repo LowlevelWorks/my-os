@@ -1,54 +1,106 @@
-.intel_syntax noprefix 
+.intel_syntax noprefix
 
 .section .multiboot, "a"
 .align 4
 
 .long 0x1BADB002
-.long 0
-.long -(0x1BADB002)
+.long 0x00000003
+.long -(0x1BADB002 + 0x00000003)
 
 
-## ------------------------------------------------------
-## BSS
-## section used for memory that program needs, but doesnot
-## need to store an intial value for
-##--------------------------------------------------------
+.global pml4_table
+.global pdpt_table
+.global pd_table
+
+.global high_pdpt_table
+.global high_pd_table
+
+.global phys_map_pdpt_table
+
+.global temp_pdpt_table
+.global temp_pd_table 
+.global temp_pt_table
+
+
+
+.section .boot.data, "aw"
+
+.align 4096
+pml4_table:
+    ## index 0 -> pdpt_table (identity map, low 2 MiB)
+    .quad pdpt_table + 0x03
+    .fill 255, 8, 0
+    ## index 256 -> phys_map_pdpt_table (direct physical map, PHYS_MAP_BASE)
+    .quad phys_map_pdpt_table + 0x03
+    .fill 251, 8, 0
+    ## index 508 -> temp_pdpt_table (temporary mapping window)
+    .quad temp_pdpt_table + 0x03
+    .fill 2, 8, 0
+    ## index 511 -> high_pdpt_table (high-half kernel mapping)
+    .quad high_pdpt_table + 0x03
+ 
+.align 4096
+pdpt_table:
+    ## index 0 -> pd_table
+    .quad pd_table + 0x03
+    .fill 511, 8, 0
+ 
+.align 4096
+pd_table:
+    ## index 0 -> physical address 0x00000000, PRESENT | WRITABLE | HUGE
+    .quad 0x0000000000000083
+    .fill 511, 8, 0
+ 
+.align 4096
+high_pdpt_table:
+    .fill 510, 8, 0
+    ## index 510 -> high_pd_table
+    .quad high_pd_table + 0x03
+    .fill 1, 8, 0
+ 
+.align 4096
+phys_map_pdpt_table:
+    ## index 0 -> physical 0..1 GiB, PRESENT | WRITABLE | HUGE
+    ## (paging.c extends this after physical-memory discovery)
+    .quad 0x0000000000000083
+    .fill 511, 8, 0
+ 
+.align 4096
+temp_pdpt_table:
+    ## index 0 -> temp_pd_table
+    .quad temp_pd_table + 0x03
+    .fill 511, 8, 0
+ 
+.align 4096
+temp_pd_table:
+    ## index 0 -> temp_pt_table
+    .quad temp_pt_table + 0x03
+    .fill 511, 8, 0
 
 .section .boot.bss, "aw", @nobits
 
 .align 4096
-pml4_table:
-    .skip 4096
-
-.align 4096
-pdpt_table:
-    .skip 4096
-
-.align 4096
-pd_table:
-    .skip 4096
-
-.align 4096
-high_pdpt_table:
-    .skip 4096
-
-.align 4096
 high_pd_table:
     .skip 4096
+ 
+.align 4096
+temp_pt_table:
+    .skip 4096
 
-
-## Stack 
+## Stack
 .align 16
 stack:
-    .skip 16384 
+    .skip 16384
 
 stack_top:
+
 
 .align 16
 idt:
     .skip 256 * 16
 
 idt_end:
+
 
 multiboot_info_address:
 .long 0
@@ -57,95 +109,105 @@ multiboot_info_address:
 
 ## ---------------------------------
 ## 32-BIT ENTRY
-## GRUB drops us here in 32-bit protected mode. Our job :build page 
+## GRUB drops us here in 32-bit protected mode. Our job :build page
 ## tables, flip the cpu into 64-bit long mode, then jump into 64-bit code that calls our c kernel_main
 ##------------------------------------------
 
 .section .boot.text, "ax"
 .code32
 
-.global _start 
+.global _start
 .extern kernel_main
 
 _start:
-    cli 
+    cli
 
     mov [multiboot_info_address], ebx
-    #load our gdt 
+
+    #load our gdt
     lgdt gdt_descriptor
 
-    ## Build page table
+    lea edi, high_pd_table
 
-    ## PML4[0] =  address of PDPT + 0x03
+    mov esi, offset kernel_load_start
+    mov edx, offset kernel_load_end
+
+    xor ecx, ecx
+
+map_kernel:
+
+    cmp esi, edx
+    jae map_kernel_done
+
+    ## PD[index] -> physical kernel page
+    ## PRESENT + WRITABLE + HUGE
+    mov eax, esi
+    or eax, 0x00000083
+
+    mov [edi + ecx * 8], eax
+
+    /*
+     * Current kernel physical addresses are below 4 GiB.
+     */
+    mov dword ptr [edi + ecx * 8 + 4], 0
+
+    add esi, 0x200000
+    inc ecx
+
+    /*
+     * A single PD contains 512 entries.
+     */
+    cmp ecx, 512
+    jae map_kernel_done
+
+    jmp map_kernel
+
+
+map_kernel_done: 
+    # Load PML4 into CR3
     lea eax, pml4_table
-    lea ebx, pdpt_table
-    or ebx, 0x03 
-    mov [eax], ebx
-
-    ## PDPT[0] = address of PD + 0x03 
-     lea eax, pdpt_table
-     lea ebx, pd_table
-     or ebx, 0x03
-     mov [eax], ebx
-
-    ## PD[0] -> physical address 0x00000000
-    lea eax, pd_table 
-    mov ebx, 0x00000083
-    mov [eax], ebx
-
-    # High-half mapping
-    lea eax, pml4_table
-    lea ebx, high_pdpt_table
-    or ebx, 0x03
-    mov [eax + 511 * 8], ebx
-
-    lea eax, high_pdpt_table
-    lea ebx, high_pd_table
-    or ebx, 0x03
-    mov [eax + 510 * 8], ebx 
-
-    lea eax, high_pd_table
-    mov ebx, 0x00200083
-    mov [eax], ebx
-
-     # Load PML4 into CR3
-     lea eax, pml4_table
-     mov cr3, eax
-
-    ###  Enable PAE format for paging 
+    mov cr3, eax
+ 
+ 
+    ### Enable PAE format for paging
     mov eax, cr4
     or eax, 0x20
     mov cr4, eax
-
+ 
+ 
     ## Enable Long mode
     mov ecx, 0xC0000080
-    rdmsr 
+    rdmsr
     or eax, 0x100
     wrmsr
-
-   ## Enable Paging 
-   mov eax, cr0
-   or eax, 0x80000000
-   mov cr0, eax
-
-   ## Jump to long mode
-   jmp 0x08:long_mode
-
+ 
+ 
+    ## Enable Paging
+    mov eax, cr0
+    or eax, 0x80000000
+    mov cr0, eax
+ 
+ 
+    ## Jump to long mode
+    jmp 0x08:long_mode
 
 .code64
+
 long_mode:
-    # now executing 64-bit code
     mov ax, 0x10
-    mov ds, ax 
+
+    mov ds, ax
     mov es, ax
     mov ss, ax
 
+
     lea rsp, stack_top
 
+
     mov edi, [multiboot_info_address]
+
     mov rax, offset kernel_main
     jmp rax
-    #call kernel_main
 
 hang:
     cli
@@ -153,23 +215,108 @@ hang:
     jmp hang
 
 
+
 .align 8
 
 gdt:
-   # Null descriptor 
+
+   # Null descriptor
    .quad 0x0000000000000000
 
- # 64-bit code segment 
-  .quad 0x00AF9A000000FFFF
+   # 64-bit code segment
+   .quad 0x00AF9A000000FFFF
 
-  # Data segment
-    .quad 0x00AF92000000FFFF
+   # Data segment
+   .quad 0x00AF92000000FFFF
+
 
 
 gdt_descriptor:
-.word gdt_descriptor - gdt - 1 
-.quad gdt
+    .word gdt_descriptor - gdt - 1
+    .quad gdt
+
 
 idt_descriptor:
     .word idt_end - idt - 1
     .quad idt
+
+
+
+/*
+ * ============================================================
+ * Bootstrap physical-address accessors
+ * ============================================================
+ *
+ * These functions provide physical addresses of objects that
+ * live in the bootstrap .boot.bss section.
+ *
+ * Normal page tables are NOT accessed through these functions.
+ * Once the normal memory subsystem is initialized, page-table
+ * pages are allocated from the buddy allocator and accessed
+ * through the direct physical-memory map.
+ * ============================================================
+ */
+
+.section .text, "ax"
+
+.code64
+
+
+.global boot_temp_pd_phys
+.type boot_temp_pd_phys, @function
+
+boot_temp_pd_phys:
+    movabs rax, offset temp_pd_table
+    ret
+
+
+.global boot_temp_pt_phys
+.type boot_temp_pt_phys, @function
+
+boot_temp_pt_phys:
+    movabs rax, offset temp_pt_table
+    ret
+
+
+
+/*
+ * Physical addresses exported by linker.ld.
+ *
+ * memblock uses these to reserve the bootstrap image and
+ * kernel image without creating higher-half C -> low-memory
+ * PC-relative relocations.
+ */
+
+.global boot_load_start_phys
+.type boot_load_start_phys, @function
+
+boot_load_start_phys:
+    movabs rax, offset boot_load_start
+    ret
+
+
+
+.global boot_load_end_phys
+.type boot_load_end_phys, @function
+
+boot_load_end_phys:
+    movabs rax, offset boot_load_end
+    ret
+
+
+
+.global kernel_load_start_phys
+.type kernel_load_start_phys, @function
+
+kernel_load_start_phys:
+    movabs rax, offset kernel_load_start
+    ret
+
+
+
+.global kernel_load_end_phys
+.type kernel_load_end_phys, @function
+
+kernel_load_end_phys:
+    movabs rax, offset kernel_load_end
+    ret
