@@ -1,8 +1,8 @@
 #include "buddy.h"
 #include "drivers/terminal/terminal.h"
-#include "memblock.h"
-#include "memory/paging.h"
-#include "physical_memory.h"
+#include "memory/memblock/memblock.h"
+#include "memory/paging/paging.h"
+#include "memory/physical_memory/physical_memory.h"
 
 static physical_frame_t free_lists[BUDDY_MAX_ORDER + 1];
 static uint64_t free_block_counts[BUDDY_MAX_ORDER + 1];

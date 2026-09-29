@@ -27,10 +27,26 @@ SECTIONS
         *(.boot.text)
     } :boot
 
+    .boot.data :
+    {
+        . = ALIGN(4096);
+
+        *(.boot.data)
+
+        . = ALIGN(4096);
+    } :boot
+
     .boot.bss (NOLOAD) :
     {
         . = ALIGN(4096);
+
+        boot_bss_start = .;
+
         *(.boot.bss)
+
+        . = ALIGN(4096);
+
+        boot_bss_end = .;
     } :boot
 
     . = ALIGN(4096);
@@ -62,18 +78,25 @@ SECTIONS
         *(.data*)
     } :data
 
-    .bss :
+    .bss (NOLOAD) :
         AT(kernel_load_start + (ADDR(.bss) - KERNEL_VMA))
     {
         . = ALIGN(4096);
+
         *(COMMON)
         *(.bss*)
-    } :data
 
-    . = ALIGN(4096);
+        . = ALIGN(4096);
+    } :data
 
     kernel_end = .;
 
     kernel_load_end =
         kernel_load_start + (kernel_end - KERNEL_VMA);
+
+    /DISCARD/ :
+    {
+        *(.comment)
+        *(.note*)
+    }
 }

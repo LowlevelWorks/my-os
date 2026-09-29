@@ -1,7 +1,7 @@
 #ifndef BUDDY_H
 #define BUDDY_H
 
-#include "frame.h"
+#include "memory/frame/frame.h"
 
 #define BUDDY_MAX_ORDER 10
 

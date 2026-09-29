@@ -48,10 +48,14 @@ C_SOURCES := \
 	kernel/shell/commands/echo.c \
 	kernel/shell/commands/clear.c \
 	kernel/shell/history.c        \
-	kernel/memory/physical_memory.c \
-	kernel/memory/frame.c          \
-	kernel/memory/memblock.c   \
-	kernel/memory/buddy.c
+	kernel/memory/physical_memory/physical_memory.c \
+	kernel/memory/frame/frame.c          \
+	kernel/memory/memblock/memblock.c   \
+	kernel/memory/buddy/buddy.c     \
+	kernel/arch/x86_64/cpu.c  \
+	kernel/memory/panic.c    \
+        kernel/memory/paging/paging.c  \
+        kernel/memory/paging/paging_utils.c
 
 
 

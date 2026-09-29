@@ -5,8 +5,9 @@
 #include "arch/x86_64/pic.h"
 #include "drivers/keyboard/keyboard.h"
 #include "drivers/terminal/terminal.h"
-#include "memory/buddy.h"
-#include "memory/physical_memory.h"
+#include "memory/buddy/buddy.h"
+#include "memory/paging/paging.h"
+#include "memory/physical_memory/physical_memory.h"
 #include "shell/shell.h"
 
 static void enable_interrupts(void) { __asm__ volatile("sti"); }
@@ -17,7 +18,9 @@ void kernel_main(multiboot_info_t *multiboot_info) {
 
   physical_memory_init(multiboot_info);
   buddy_init();
-  buddy_debug_print();
+  // buddy_debug_print();
+
+  paging_init();
 
   idt_init();
 

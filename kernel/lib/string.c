@@ -28,3 +28,12 @@ uint64_t string_length(const char *s) {
   }
   return n;
 }
+
+void *memory_set(void *destination, int value, uint64_t size) {
+  uint8_t *bytes = destination;
+  for (uint64_t i = 0; i < size; i++) {
+    bytes[i] = (uint8_t)value;
+  }
+
+  return destination;
+}

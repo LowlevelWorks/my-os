@@ -17,12 +17,6 @@
 
 .global phys_map_pdpt_table
 
-.global temp_pdpt_table
-.global temp_pd_table 
-.global temp_pt_table
-
-
-
 .section .boot.data, "aw"
 
 .align 4096
@@ -32,22 +26,17 @@ pml4_table:
     .fill 255, 8, 0
     ## index 256 -> phys_map_pdpt_table (direct physical map, PHYS_MAP_BASE)
     .quad phys_map_pdpt_table + 0x03
-    .fill 251, 8, 0
-    ## index 508 -> temp_pdpt_table (temporary mapping window)
-    .quad temp_pdpt_table + 0x03
-    .fill 2, 8, 0
+    .fill 254, 8, 0
     ## index 511 -> high_pdpt_table (high-half kernel mapping)
     .quad high_pdpt_table + 0x03
  
 .align 4096
 pdpt_table:
-    ## index 0 -> pd_table
     .quad pd_table + 0x03
     .fill 511, 8, 0
  
 .align 4096
 pd_table:
-    ## index 0 -> physical address 0x00000000, PRESENT | WRITABLE | HUGE
     .quad 0x0000000000000083
     .fill 511, 8, 0
  
@@ -65,28 +54,12 @@ phys_map_pdpt_table:
     .quad 0x0000000000000083
     .fill 511, 8, 0
  
-.align 4096
-temp_pdpt_table:
-    ## index 0 -> temp_pd_table
-    .quad temp_pd_table + 0x03
-    .fill 511, 8, 0
- 
-.align 4096
-temp_pd_table:
-    ## index 0 -> temp_pt_table
-    .quad temp_pt_table + 0x03
-    .fill 511, 8, 0
-
 .section .boot.bss, "aw", @nobits
 
 .align 4096
 high_pd_table:
     .skip 4096
  
-.align 4096
-temp_pt_table:
-    .skip 4096
-
 ## Stack
 .align 16
 stack:
@@ -139,24 +112,16 @@ map_kernel:
     cmp esi, edx
     jae map_kernel_done
 
-    ## PD[index] -> physical kernel page
-    ## PRESENT + WRITABLE + HUGE
     mov eax, esi
     or eax, 0x00000083
 
     mov [edi + ecx * 8], eax
 
-    /*
-     * Current kernel physical addresses are below 4 GiB.
-     */
     mov dword ptr [edi + ecx * 8 + 4], 0
 
     add esi, 0x200000
     inc ecx
 
-    /*
-     * A single PD contains 512 entries.
-     */
     cmp ecx, 512
     jae map_kernel_done
 
@@ -242,50 +207,10 @@ idt_descriptor:
 
 
 
-/*
- * ============================================================
- * Bootstrap physical-address accessors
- * ============================================================
- *
- * These functions provide physical addresses of objects that
- * live in the bootstrap .boot.bss section.
- *
- * Normal page tables are NOT accessed through these functions.
- * Once the normal memory subsystem is initialized, page-table
- * pages are allocated from the buddy allocator and accessed
- * through the direct physical-memory map.
- * ============================================================
- */
-
+## Helper functions
 .section .text, "ax"
-
 .code64
 
-
-.global boot_temp_pd_phys
-.type boot_temp_pd_phys, @function
-
-boot_temp_pd_phys:
-    movabs rax, offset temp_pd_table
-    ret
-
-
-.global boot_temp_pt_phys
-.type boot_temp_pt_phys, @function
-
-boot_temp_pt_phys:
-    movabs rax, offset temp_pt_table
-    ret
-
-
-
-/*
- * Physical addresses exported by linker.ld.
- *
- * memblock uses these to reserve the bootstrap image and
- * kernel image without creating higher-half C -> low-memory
- * PC-relative relocations.
- */
 
 .global boot_load_start_phys
 .type boot_load_start_phys, @function
@@ -295,14 +220,12 @@ boot_load_start_phys:
     ret
 
 
-
 .global boot_load_end_phys
 .type boot_load_end_phys, @function
 
 boot_load_end_phys:
     movabs rax, offset boot_load_end
     ret
-
 
 
 .global kernel_load_start_phys

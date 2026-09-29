@@ -1,8 +1,8 @@
 #include "physical_memory.h"
 #include "drivers/terminal/terminal.h"
-#include "frame.h"
-#include "memblock.h"
-#include "paging.h"
+#include "memory/frame/frame.h"
+#include "memory/memblock/memblock.h"
+#include "memory/paging/paging.h"
 #include <stdint.h>
 
 static physical_memory_region_t memory_regions[PHYSICAL_MEMORY_MAX_REGIONS];
@@ -16,12 +16,13 @@ void physical_memory_init(const multiboot_info_t *multiboot_info) {
   highest_available_physical_address = 0;
   physical_frame_count = 0;
 
-  if (multiboot_info == 0) {
-    return;
-  }
-
-  if ((multiboot_info->flags & MULTIBOOT_INFO_FLAG_MEMORY_MAP) == 0) {
-    return;
+  if (multiboot_info == 0 ||
+      (multiboot_info->flags & MULTIBOOT_INFO_FLAG_MEMORY_MAP) == 0) {
+    terminal_write("Failed to obtain memory map from bootloader\n");
+    for (;;) {
+      __asm__ volatile("cli");
+      __asm__ volatile("hlt");
+    }
   }
 
   uint32_t offset = 0;
@@ -60,7 +61,9 @@ void physical_memory_init(const multiboot_info_t *multiboot_info) {
     offset += (uint32_t)entry_size;
   }
 
-  physical_frame_count = highest_available_physical_address / PAGE_SIZE;
+  physical_frame_count =
+      align_up(highest_available_physical_address) / PAGE_SIZE;
+
   memblock_reserve_boot();
   memblock_reserve_kernel();
   memblock_reserve_multiboot(multiboot_info);
@@ -85,6 +88,10 @@ void physical_memory_init(const multiboot_info_t *multiboot_info) {
 
 uint32_t physical_memory_region_count(void) {
   return memory_region_count_value;
+}
+
+uint64_t physical_memory_highest_address(void) {
+  return highest_available_physical_address;
 }
 
 uint64_t physical_memory_frame_count(void) { return physical_frame_count; }
