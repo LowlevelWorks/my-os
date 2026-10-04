@@ -2,9 +2,10 @@
 #include "arch/x86_64/cpu.h"
 #include "drivers/terminal/terminal.h"
 #include "memory/buddy/buddy.h"
-#include "memory/panic.h"
+#include "memory/frame/frame.h"
 #include "memory/physical_memory/physical_memory.h"
 #include "paging_utils.h"
+#include "panic/panic.h"
 
 #include <stdint.h>
 
@@ -74,11 +75,14 @@ static uint64_t paging_alloc_table(void) {
     panic("unable to allocate page-table frame");
   }
 
-  page_table_t *table = (page_table_t *)paging_physical_to_virtual(frame);
+  uint64_t physical_address = frame_to_address(frame);
+
+  page_table_t *table =
+      (page_table_t *)paging_physical_to_virtual(physical_address);
 
   paging_clear_table(table);
 
-  return frame;
+  return physical_address;
 }
 
 static page_table_t *paging_get_table(page_table_t *parent, uint64_t index,
@@ -110,14 +114,17 @@ static page_table_t *paging_get_table(page_table_t *parent, uint64_t index,
       paging_entry_address(entry));
 }
 
-static paging_result_t paging_lookup(uint64_t virtual_address,
+static paging_result_t paging_lookup(page_table_t *pml4,
+                                     uint64_t virtual_address,
                                      page_table_entry_t **entry,
                                      paging_page_size_t *page_size) {
-  if (!paging_is_canonical(virtual_address)) {
+  if (pml4 == 0) {
     return PAGING_ERR_INVALID_ADDRESS;
   }
 
-  page_table_t *pml4 = paging_current_pml4();
+  if (!paging_is_canonical(virtual_address)) {
+    return PAGING_ERR_INVALID_ADDRESS;
+  }
 
   uint64_t pml4e = pml4->entries[paging_pml4_index(virtual_address)];
 
@@ -180,8 +187,8 @@ static paging_result_t paging_lookup(uint64_t virtual_address,
 
   return PAGING_OK;
 }
-
-static paging_result_t paging_map_4k_internal(uint64_t virtual_address,
+static paging_result_t paging_map_4k_internal(page_table_t *pml4,
+                                              uint64_t virtual_address,
                                               uint64_t physical_address,
                                               uint64_t flags) {
   paging_result_t result = paging_validate_mapping(
@@ -190,8 +197,6 @@ static paging_result_t paging_map_4k_internal(uint64_t virtual_address,
   if (result != PAGING_OK) {
     return result;
   }
-
-  page_table_t *pml4 = paging_current_pml4();
 
   page_table_t *pdpt = paging_get_table(
       pml4, paging_pml4_index(virtual_address), (flags & PAGE_USER) != 0);
@@ -228,7 +233,8 @@ static paging_result_t paging_map_4k_internal(uint64_t virtual_address,
   return PAGING_OK;
 }
 
-static paging_result_t paging_map_2m_internal(uint64_t virtual_address,
+static paging_result_t paging_map_2m_internal(page_table_t *pml4,
+                                              uint64_t virtual_address,
                                               uint64_t physical_address,
                                               uint64_t flags) {
   paging_result_t result = paging_validate_mapping(
@@ -237,8 +243,6 @@ static paging_result_t paging_map_2m_internal(uint64_t virtual_address,
   if (result != PAGING_OK) {
     return result;
   }
-
-  page_table_t *pml4 = paging_current_pml4();
 
   page_table_t *pdpt = paging_get_table(
       pml4, paging_pml4_index(virtual_address), (flags & PAGE_USER) != 0);
@@ -268,7 +272,8 @@ static paging_result_t paging_map_2m_internal(uint64_t virtual_address,
   return PAGING_OK;
 }
 
-static paging_result_t paging_map_1g_internal(uint64_t virtual_address,
+static paging_result_t paging_map_1g_internal(page_table_t *pml4,
+                                              uint64_t virtual_address,
                                               uint64_t physical_address,
                                               uint64_t flags) {
   if (!supports_1g_pages) {
@@ -281,8 +286,6 @@ static paging_result_t paging_map_1g_internal(uint64_t virtual_address,
   if (result != PAGING_OK) {
     return result;
   }
-
-  page_table_t *pml4 = paging_current_pml4();
 
   page_table_t *pdpt = paging_get_table(
       pml4, paging_pml4_index(virtual_address), (flags & PAGE_USER) != 0);
@@ -307,22 +310,29 @@ static paging_result_t paging_map_1g_internal(uint64_t virtual_address,
 
 paging_result_t paging_map(uint64_t virtual_address, uint64_t physical_address,
                            uint64_t flags) {
-  return paging_map_4k_internal(virtual_address, physical_address, flags);
+  page_table_t *pml4 = paging_current_pml4();
+
+  return paging_map_4k_internal(pml4, virtual_address, physical_address, flags);
 }
 
 paging_result_t paging_map_2m(uint64_t virtual_address,
                               uint64_t physical_address, uint64_t flags) {
-  return paging_map_2m_internal(virtual_address, physical_address, flags);
+  page_table_t *pml4 = paging_current_pml4();
+  return paging_map_2m_internal(pml4, virtual_address, physical_address, flags);
 }
 
 paging_result_t paging_map_1g(uint64_t virtual_address,
                               uint64_t physical_address, uint64_t flags) {
-  return paging_map_1g_internal(virtual_address, physical_address, flags);
+  page_table_t *pml4 = paging_current_pml4();
+  return paging_map_1g_internal(pml4, virtual_address, physical_address, flags);
 }
 
 paging_result_t paging_map_range(uint64_t virtual_address,
                                  uint64_t physical_address, uint64_t size,
                                  uint64_t flags) {
+
+  page_table_t *pml4 = paging_current_pml4();
+
   if (!paging_range_valid(virtual_address, size)) {
     return PAGING_ERR_INVALID_RANGE;
   }
@@ -345,7 +355,8 @@ paging_result_t paging_map_range(uint64_t virtual_address,
     if (supports_1g_pages && remaining >= PAGE_1G_SIZE &&
         (virtual_address & (PAGE_1G_SIZE - 1)) == 0 &&
         (physical_address & (PAGE_1G_SIZE - 1)) == 0) {
-      result = paging_map_1g_internal(virtual_address, physical_address, flags);
+      result = paging_map_1g_internal(pml4, virtual_address, physical_address,
+                                      flags);
 
       if (result != PAGING_OK) {
         return result;
@@ -360,7 +371,8 @@ paging_result_t paging_map_range(uint64_t virtual_address,
     if (remaining >= PAGE_2M_SIZE &&
         (virtual_address & (PAGE_2M_SIZE - 1)) == 0 &&
         (physical_address & (PAGE_2M_SIZE - 1)) == 0) {
-      result = paging_map_2m_internal(virtual_address, physical_address, flags);
+      result = paging_map_2m_internal(pml4, virtual_address, physical_address,
+                                      flags);
 
       if (result != PAGING_OK) {
         return result;
@@ -372,7 +384,8 @@ paging_result_t paging_map_range(uint64_t virtual_address,
       continue;
     }
 
-    result = paging_map_4k_internal(virtual_address, physical_address, flags);
+    result =
+        paging_map_4k_internal(pml4, virtual_address, physical_address, flags);
 
     if (result != PAGING_OK) {
       return result;
@@ -396,7 +409,61 @@ paging_result_t paging_translate(uint64_t virtual_address,
   page_table_entry_t *entry;
   paging_page_size_t size;
 
-  paging_result_t result = paging_lookup(virtual_address, &entry, &size);
+  paging_result_t result =
+      paging_lookup(paging_current_pml4(), virtual_address, &entry, &size);
+
+  if (result != PAGING_OK) {
+    return result;
+  }
+
+  uint64_t base = paging_entry_address(*entry);
+  uint64_t offset;
+
+  switch (size) {
+  case PAGING_PAGE_1G:
+    offset = virtual_address & (PAGE_1G_SIZE - 1);
+    break;
+
+  case PAGING_PAGE_2M:
+    offset = virtual_address & (PAGE_2M_SIZE - 1);
+    break;
+
+  case PAGING_PAGE_4K:
+    offset = virtual_address & (PAGE_SIZE - 1);
+    break;
+
+  default:
+    return PAGING_ERR_INVALID_ADDRESS;
+  }
+
+  *physical_address = base + offset;
+
+  if (page_size) {
+    *page_size = size;
+  }
+
+  return PAGING_OK;
+}
+
+paging_result_t paging_translate_in_address_space(
+    uint64_t page_table_root, uint64_t virtual_address,
+    uint64_t *physical_address, paging_page_size_t *page_size) {
+
+  if (physical_address == 0) {
+    return PAGING_ERR_INVALID_ADDRESS;
+  }
+
+  if ((page_table_root & (PAGE_SIZE - 1)) != 0) {
+    return PAGING_ERR_INVALID_ALIGNMENT;
+  }
+
+  page_table_t *pml4 =
+      (page_table_t *)paging_physical_to_virtual(page_table_root);
+
+  page_table_entry_t *entry;
+  paging_page_size_t size;
+
+  paging_result_t result = paging_lookup(pml4, virtual_address, &entry, &size);
 
   if (result != PAGING_OK) {
     return result;
@@ -449,7 +516,8 @@ paging_result_t paging_protect(uint64_t virtual_address, uint64_t flags) {
   page_table_entry_t *entry;
   paging_page_size_t page_size;
 
-  result = paging_lookup(virtual_address, &entry, &page_size);
+  result =
+      paging_lookup(paging_current_pml4(), virtual_address, &entry, &page_size);
 
   if (result != PAGING_OK) {
     return result;
@@ -476,7 +544,8 @@ paging_result_t paging_unmap(uint64_t virtual_address) {
   page_table_entry_t *entry;
   paging_page_size_t page_size;
 
-  paging_result_t result = paging_lookup(virtual_address, &entry, &page_size);
+  paging_result_t result =
+      paging_lookup(paging_current_pml4(), virtual_address, &entry, &page_size);
 
   if (result != PAGING_OK) {
     return result;
@@ -501,7 +570,8 @@ paging_result_t paging_unmap_2m(uint64_t virtual_address) {
   page_table_entry_t *entry;
   paging_page_size_t page_size;
 
-  paging_result_t result = paging_lookup(virtual_address, &entry, &page_size);
+  paging_result_t result =
+      paging_lookup(paging_current_pml4(), virtual_address, &entry, &page_size);
 
   if (result != PAGING_OK) {
     return result;
@@ -526,7 +596,8 @@ paging_result_t paging_unmap_1g(uint64_t virtual_address) {
   page_table_entry_t *entry;
   paging_page_size_t page_size;
 
-  paging_result_t result = paging_lookup(virtual_address, &entry, &page_size);
+  paging_result_t result =
+      paging_lookup(paging_current_pml4(), virtual_address, &entry, &page_size);
 
   if (result != PAGING_OK) {
     return result;
@@ -661,6 +732,21 @@ void paging_dump(uint64_t virtual_address) {
   terminal_write("  physical=0x");
   terminal_write_uint(paging_entry_address(pte));
   terminal_write("\n");
+}
+
+paging_result_t paging_map_in_address_space(uint64_t page_table_root,
+                                            uint64_t virtual_address,
+                                            uint64_t physical_address,
+                                            uint64_t flags) {
+
+  if ((page_table_root & (PAGE_SIZE - 1)) != 0) {
+    return PAGING_ERR_INVALID_ALIGNMENT;
+  }
+
+  page_table_t *pml4 =
+      (page_table_t *)paging_physical_to_virtual(page_table_root);
+
+  return paging_map_4k_internal(pml4, virtual_address, physical_address, flags);
 }
 
 void paging_init(void) {

@@ -53,15 +53,24 @@ C_SOURCES := \
 	kernel/memory/memblock/memblock.c   \
 	kernel/memory/buddy/buddy.c     \
 	kernel/arch/x86_64/cpu.c  \
-	kernel/memory/panic.c    \
+	kernel/panic/panic.c    \
         kernel/memory/paging/paging.c  \
-        kernel/memory/paging/paging_utils.c
+        kernel/memory/paging/paging_utils.c \
+	kernel/process/thread.c   \
+	kernel/process/process.c  \
+	kernel/process/scheduler.c \
+	kernel/cpu/per_cpu.c       \
+	kernel/memory/address_space/address_space.c \
+	kernel/arch/x86_64/pit.c  \
+        kernel/arch/x86_64/gdt.c
 
 
 
 ASM_SOURCES := \
 	boot/boot.S \
-	kernel/arch/x86_64/interrupts_handlers.S
+	kernel/arch/x86_64/interrupts_handlers.S \
+        kernel/arch/x86_64/context_switch.S     \
+	kernel/arch/x86_64/gdt_load.S
 
 
 # ==========================================

@@ -1,7 +1,7 @@
 #ifndef INTERRUPTS_H
 #define INTERRUPTS_H
 
-#include<stdint.h>
+#include <stdint.h>
 
 #define IDT_MAX_DESCRIPTORS 256
 
@@ -16,10 +16,9 @@ struct idt_entry {
 } __attribute__((packed));
 
 struct idt_descriptor {
- uint16_t limit;
- uint64_t base;
+  uint16_t limit;
+  uint64_t base;
 } __attribute__((packed));
-
 
 void idt_init(void);
 void idt_set_gate(int vector, uint64_t handler, uint8_t attributes);

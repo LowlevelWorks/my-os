@@ -85,6 +85,20 @@ paging_result_t paging_translate(uint64_t virtual_address,
                                  uint64_t *physical_address,
                                  paging_page_size_t *page_size);
 
+paging_result_t paging_map_in_address_space(uint64_t page_table_root,
+                                            uint64_t virtual_address,
+                                            uint64_t physical_address,
+                                            uint64_t flags);
+
+paging_result_t paging_map_in_address_space(uint64_t page_table_root,
+                                            uint64_t virtual_address,
+                                            uint64_t physical_address,
+                                            uint64_t flags);
+
+paging_result_t paging_translate_in_address_space(
+    uint64_t page_table_root, uint64_t virtual_address,
+    uint64_t *physical_address, paging_page_size_t *page_size);
+
 paging_result_t paging_protect(uint64_t virtual_address, uint64_t flags);
 
 static inline uint64_t paging_physical_to_virtual(uint64_t physical_address) {

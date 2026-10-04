@@ -1,10 +1,12 @@
 #include "terminal.h"
 #include "arch/x86_64/io.h"
+#include "memory/paging/paging.h"
 #include <stdint.h>
 
 #define VGA_WIDTH 80
 #define VGA_HEIGHT 25
-#define VGA_MEMORY ((volatile uint16_t *)0xB8000)
+#define VGA_PHYS 0xB8000ULL
+#define VGA_MEMORY ((volatile uint16_t *)(PHYS_MAP_BASE + VGA_PHYS))
 #define VGA_INDEX_PORT 0x3D4
 #define VGA_DATA_PORT 0x3D5
 
