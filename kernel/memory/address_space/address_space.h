@@ -18,4 +18,6 @@ paging_result_t address_space_map(address_space_t *address_space,
                                   uint64_t virtual_address,
                                   uint64_t physical_address, uint64_t flags);
 
+void address_space_destroy(address_space_t *address_space);
+
 #endif

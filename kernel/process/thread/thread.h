@@ -18,6 +18,7 @@ typedef enum {
 typedef struct thread thread_t;
 
 struct process;
+struct wait_queue;
 
 struct thread {
   thread_id_t id;
@@ -36,6 +37,7 @@ struct thread {
 
   thread_t *next;
   thread_t *process_next;
+  thread_t *wait_next;
 };
 
 void thread_init(void);
@@ -47,10 +49,17 @@ thread_t *thread_create_kernel_for_process(struct process *process,
 
 thread_t *thread_create_idle(void);
 
-void thread_exit(void);
+void thread_block(void);
+void thread_wake(thread_t *thread);
+void thread_wait(struct wait_queue *queue);
 
 thread_t *thread_current(void);
 
 void thread_set_current(thread_t *thread);
+
+int process_has_live_threads(struct process *process);
+
+void thread_exit(int status);
+void thread_destroy(thread_t *thread);
 
 #endif

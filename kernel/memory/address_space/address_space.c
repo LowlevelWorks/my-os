@@ -47,29 +47,12 @@ address_space_t *address_space_create_kernel(void) {
   page_table_t *current_pml4 =
       (page_table_t *)paging_physical_to_virtual(current_page_table_root());
 
-  /*
-   * Shared physical direct map.
-   *
-   * This contains kernel stacks, page tables, process
-   * structures and other physical kernel objects.
-   */
   new_pml4->entries[PHYS_MAP_PML4_INDEX] =
       current_pml4->entries[PHYS_MAP_PML4_INDEX];
 
-  /*
-   * Shared high-half kernel mapping.
-   *
-   * Kernel code, kernel data, IDT and kernel services live here.
-   */
   new_pml4->entries[KERNEL_PML4_INDEX] =
       current_pml4->entries[KERNEL_PML4_INDEX];
 
-  /*
-   * Deliberately do NOT copy PML4[0].
-   *
-   * User/process address spaces must not inherit the low
-   * identity mapping.
-   */
   address_space->page_table_root = pml4_physical;
 
   return address_space;
@@ -92,4 +75,23 @@ paging_result_t address_space_map(address_space_t *address_space,
 
   return paging_map_in_address_space(address_space->page_table_root,
                                      virtual_address, physical_address, flags);
+}
+void address_space_destroy(address_space_t *address_space) {
+  if (address_space == 0) {
+    panic("address_space_destroy: null address space");
+  }
+
+  uint64_t pml4_physical = address_space->page_table_root;
+
+  if (pml4_physical == 0) {
+    panic("address_space_destroy: invalid page table root");
+  }
+
+  physical_frame_t pml4_frame = address_to_frame(pml4_physical);
+
+  physical_frame_t address_space_frame =
+      address_to_frame(paging_virtual_to_physical((uint64_t)address_space));
+
+  frame_free(pml4_frame);
+  frame_free(address_space_frame);
 }

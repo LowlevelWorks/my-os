@@ -70,3 +70,23 @@ resume_preempted:
     iretq
 
 .size resume_preempted, .-resume_preempted
+
+
+.global context_switch_to_preempted
+.type context_switch_to_preempted, @function
+
+context_switch_to_preempted:
+    push rbp
+    push rbx
+    push r12
+    push r13
+    push r14
+    push r15
+
+    mov [rdi], rsp          
+
+    mov rdi, rsi           
+    mov rsi, rdx
+    jmp resume_preempted
+
+.size context_switch_to_preempted, .-context_switch_to_preempted

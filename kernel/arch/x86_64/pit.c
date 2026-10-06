@@ -5,15 +5,16 @@
 
 #include "panic/panic.h"
 
-#include "process/scheduler.h"
+#include "process/scheduler/scheduler.h"
+#include "process/sleep/sleep.h"
 
-#define PIT_IRQ_VECTOR 32
-#define PIT_CMD_CHANNEL0_MODE3 0x36
+#define pit_irq_vector 32
+#define pit_cmd_channel0_mode3 0x36
 
-#define PIT_CHANNEL0 0x40
-#define PIT_COMMAND 0x43
+#define pit_channel0 0x40
+#define pit_command 0x43
 
-#define PIT_BASE_FREQUENCY 1193182U
+#define pit_base_frequency 1193182u
 
 static volatile uint64_t ticks = 0;
 
@@ -22,17 +23,17 @@ static void pit_set_frequency(uint32_t frequency) {
     panic("pit: invalid frequency");
   }
 
-  uint32_t divisor = (PIT_BASE_FREQUENCY + frequency / 2) / frequency;
+  uint32_t divisor = pit_base_frequency / frequency;
 
-  if (divisor == 0 || divisor > 0xFFFF) {
+  if (divisor == 0 || divisor > 0xffff) {
     panic("pit: invalid divisor");
   }
 
-  outb(PIT_COMMAND, PIT_CMD_CHANNEL0_MODE3);
+  outb(pit_command, pit_cmd_channel0_mode3);
 
-  outb(PIT_CHANNEL0, (uint8_t)(divisor & 0xFF));
+  outb(pit_channel0, (uint8_t)(divisor & 0xff));
 
-  outb(PIT_CHANNEL0, (uint8_t)((divisor >> 8) & 0xFF));
+  outb(pit_channel0, (uint8_t)((divisor >> 8) & 0xff));
 }
 
 void pit_init(uint32_t frequency) {
@@ -50,13 +51,15 @@ void pit_handle_irq_frame(interrupt_frame_t *frame) {
     panic("pit: null interrupt frame");
   }
 
-  if (frame->vector != PIT_IRQ_VECTOR) {
+  if (frame->vector != pit_irq_vector) {
     panic("pit: invalid interrupt vector");
   }
 
   pit_handle_irq();
 
-  scheduler_tick(frame);
+  sleep_tick(pit_ticks());
 
   pic_send_eoi(0);
+
+  scheduler_tick(frame);
 }

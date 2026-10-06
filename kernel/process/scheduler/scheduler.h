@@ -18,6 +18,9 @@ void scheduler_create_idle(void);
 
 void scheduler_tick(struct interrupt_frame *frame);
 
+void scheduler_block_current(void);
+void scheduler_wake(struct thread *thread);
+
 int scheduler_interrupt_switch_required(void);
 
 uint64_t scheduler_interrupt_next_rsp(void);
