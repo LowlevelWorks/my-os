@@ -39,13 +39,6 @@ static void shell_entry(void) {
   }
 }
 
-static void child_entry(void) {
-  terminal_write("CHILD: running\n");
-  terminal_write("CHILD: exiting with status 42\n");
-
-  thread_exit(42);
-}
-
 void kernel_main(multiboot_info_t *multiboot_info) {
   terminal_init();
 
