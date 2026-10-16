@@ -56,9 +56,11 @@ C_SOURCES := \
 	kernel/panic/panic.c    \
         kernel/memory/paging/paging.c  \
         kernel/memory/paging/paging_utils.c \
-	kernel/process/thread.c   \
-	kernel/process/process.c  \
-	kernel/process/scheduler.c \
+	kernel/process/thread/thread.c   \
+	kernel/process/sleep/sleep.c  \
+	kernel/process/process/process.c  \
+	kernel/process/scheduler/scheduler.c \
+	kernel/process/wait_queue/wait_queue.c \
 	kernel/cpu/per_cpu.c       \
 	kernel/memory/address_space/address_space.c \
 	kernel/arch/x86_64/pit.c  \
