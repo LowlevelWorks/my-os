@@ -6,7 +6,9 @@
 #include "arch/x86_64/pic.h"
 #include "cpu/per_cpu.h"
 #include "drivers/keyboard/keyboard.h"
+#include "drivers/serial/serial.h"
 #include "drivers/terminal/terminal.h"
+#include "lib/banner.h"
 #include "memory/buddy/buddy.h"
 #include "memory/paging/paging.h"
 #include "memory/physical_memory/physical_memory.h"
@@ -35,12 +37,16 @@ static void shell_entry(void) {
     if (keyboard_has_input()) {
       uint16_t key = keyboard_getkey();
       shell_handle_key(key);
+      continue;
     }
+
+    shell_poll_serial();
   }
 }
 
 void kernel_main(multiboot_info_t *multiboot_info) {
   terminal_init();
+  serial_init();
 
   physical_memory_init(multiboot_info);
   buddy_init();
@@ -55,6 +61,7 @@ void kernel_main(multiboot_info_t *multiboot_info) {
   pit_init(100);
   sleep_init();
 
+  kernel_print_banner();
   shell_init();
   shell_print_prompt();
 
