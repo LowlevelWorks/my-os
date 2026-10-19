@@ -36,42 +36,43 @@ CFLAGS := \
 C_SOURCES := \
 	kernel/kernel.c \
 	kernel/arch/x86_64/interrupts.c \
-	kernel/arch/x86_64/pic.c   \
+	kernel/arch/x86_64/pic.c \
 	kernel/drivers/keyboard/keyboard.c \
 	kernel/drivers/keyboard/keyboard_map.c \
+	kernel/drivers/serial/serial.c \
 	kernel/drivers/terminal/terminal.c \
 	kernel/shell/shell.c \
 	kernel/shell/parser.c \
-        kernel/lib/string.c   \
+	kernel/lib/string.c \
+	kernel/lib/banner.c \
 	kernel/shell/commands/commands.c \
 	kernel/shell/commands/help.c \
 	kernel/shell/commands/echo.c \
 	kernel/shell/commands/clear.c \
-	kernel/shell/history.c        \
+	kernel/shell/history.c \
 	kernel/memory/physical_memory/physical_memory.c \
-	kernel/memory/frame/frame.c          \
-	kernel/memory/memblock/memblock.c   \
-	kernel/memory/buddy/buddy.c     \
-	kernel/arch/x86_64/cpu.c  \
-	kernel/panic/panic.c    \
-        kernel/memory/paging/paging.c  \
-        kernel/memory/paging/paging_utils.c \
-	kernel/process/thread/thread.c   \
-	kernel/process/sleep/sleep.c  \
-	kernel/process/process/process.c  \
+	kernel/memory/frame/frame.c \
+	kernel/memory/memblock/memblock.c \
+	kernel/memory/buddy/buddy.c \
+	kernel/arch/x86_64/cpu.c \
+	kernel/panic/panic.c \
+	kernel/memory/paging/paging.c \
+	kernel/memory/paging/paging_utils.c \
+	kernel/process/thread/thread.c \
+	kernel/process/sleep/sleep.c \
+	kernel/process/process/process.c \
 	kernel/process/scheduler/scheduler.c \
 	kernel/process/wait_queue/wait_queue.c \
-	kernel/cpu/per_cpu.c       \
+	kernel/cpu/per_cpu.c \
 	kernel/memory/address_space/address_space.c \
-	kernel/arch/x86_64/pit.c  \
-        kernel/arch/x86_64/gdt.c
-
+	kernel/arch/x86_64/pit.c \
+	kernel/arch/x86_64/gdt.c
 
 
 ASM_SOURCES := \
 	boot/boot.S \
 	kernel/arch/x86_64/interrupts_handlers.S \
-        kernel/arch/x86_64/context_switch.S     \
+	kernel/arch/x86_64/context_switch.S \
 	kernel/arch/x86_64/gdt_load.S
 
 
@@ -119,6 +120,7 @@ $(KERNEL): $(OBJECTS) linker.ld
 	@mkdir -p $(dir $@)
 	$(LD) -T linker.ld -o $@ $(OBJECTS)
 
+
 # ==========================================
 # Create bootable ISO
 # ==========================================
@@ -136,10 +138,19 @@ iso: $(KERNEL)
 # Run OS with QEMU
 # ==========================================
 
+# QEMU window (VGA + PS/2 keyboard). Serial is also attached to this
+# terminal, so you can type in either place.
 run: iso
-	$(QEMU) -cdrom $(ISO)
+	$(QEMU) -cdrom $(ISO) -serial stdio
+
+# Headless: no window, shell runs entirely over serial in this terminal.
+# This is exactly the byte stream the web terminal will use.
+# Quit QEMU with Ctrl-A then X.
+run-serial: iso
+	$(QEMU) -cdrom $(ISO) -nographic -serial mon:stdio
+
 debug: iso
-	$(QEMU) -cdrom $(ISO) -d int,cpu_reset,guest_errors  -D qemu.log -no-reboot -no-shutdown
+	$(QEMU) -cdrom $(ISO) -serial stdio -d int,cpu_reset,guest_errors -D qemu.log -no-reboot -no-shutdown
 
 
 # ==========================================
@@ -151,7 +162,16 @@ clean:
 
 
 # ==========================================
+# Header dependency tracking
+# ==========================================
+# -MMD -MP writes a .d file next to each object. Include them so that
+# editing a header (e.g. shell.h) rebuilds every file that uses it.
+
+-include $(OBJECTS:.o=.d)
+
+
+# ==========================================
 # Phony targets
 # ==========================================
 
-.PHONY: all iso run clean
+.PHONY: all iso run run-serial debug clean
