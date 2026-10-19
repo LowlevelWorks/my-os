@@ -1,5 +1,6 @@
 #include "terminal.h"
 #include "arch/x86_64/io.h"
+#include "drivers/serial/serial.h"
 #include "memory/paging/paging.h"
 #include <stdint.h>
 
@@ -15,6 +16,12 @@
 static unsigned int row = 0;
 static unsigned int column = 0;
 static uint8_t color = DEFAULT_COLOR;
+
+static void serial_write_str(const char *s) {
+  while (*s) {
+    serial_putc(*s++);
+  }
+}
 
 unsigned int terminal_get_row() { return row; }
 
@@ -65,9 +72,21 @@ void terminal_init(void) {
   terminal_update_hardware_cursor();
 }
 
-void terminal_putchar(char c) {
+static void terminal_emit(char c) {
+  serial_putc(c);
+
   if (c == '\n') {
     terminal_newline();
+    return;
+  }
+
+  if (c == '\b') {
+    /* Move the cursor back one column; the echo path
+     * prints the erased character itself. */
+    if (column > 0) {
+      column--;
+    }
+    terminal_update_hardware_cursor();
     return;
   }
 
@@ -86,6 +105,8 @@ void terminal_putchar(char c) {
   terminal_update_hardware_cursor();
 }
 
+void terminal_putchar(char c) { terminal_emit(c); }
+
 void terminal_backspace(void) {
   if (column == 0) {
     return;
@@ -95,6 +116,9 @@ void terminal_backspace(void) {
 
   VGA_MEMORY[row * VGA_WIDTH + column] = ((uint16_t)color << 8) | ' ';
   terminal_update_hardware_cursor();
+
+  /* Erase the character on the host terminal too. */
+  serial_write_str("\b \b");
 }
 
 void terminal_put_at(unsigned int row, unsigned int column, char c) {
@@ -103,6 +127,9 @@ void terminal_put_at(unsigned int row, unsigned int column, char c) {
   }
 
   VGA_MEMORY[row * VGA_WIDTH + column] = ((uint16_t)color << 8) | (uint8_t)c;
+
+  /* Mirror the character to the serial console as well. */
+  serial_putc(c);
 }
 
 void terminal_write(const char *str) {
@@ -150,12 +177,16 @@ void terminal_clear(void) {
   row = 0;
   column = 0;
   terminal_update_hardware_cursor();
+
+  /* Clear the host terminal and move its cursor to the top-left. */
+  serial_write_str("\x1b[2J\x1b[H");
 }
 
 void terminal_set_cursor(unsigned int new_column) {
   if (new_column >= VGA_WIDTH) {
     new_column = VGA_WIDTH - 1;
   }
+
   column = new_column;
   terminal_update_hardware_cursor();
 }
@@ -168,6 +199,7 @@ void terminal_move_cursor_row(int offset) {
   if (new_row >= VGA_HEIGHT) {
     new_row = VGA_HEIGHT - 1;
   }
+
   row = (unsigned int)new_row;
   terminal_update_hardware_cursor();
 }
