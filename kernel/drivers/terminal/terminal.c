@@ -128,8 +128,8 @@ void terminal_put_at(unsigned int row, unsigned int column, char c) {
 
   VGA_MEMORY[row * VGA_WIDTH + column] = ((uint16_t)color << 8) | (uint8_t)c;
 
-  /* Mirror the character to the serial console as well. */
-  serial_putc(c);
+  // /* Mirror the character to the serial console as well. */
+  // serial_putc(c);
 }
 
 void terminal_write(const char *str) {

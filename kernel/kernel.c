@@ -57,6 +57,7 @@ void kernel_main(multiboot_info_t *multiboot_info) {
   pic_initialize();
   pic_unmask_irq(0);
   pic_unmask_irq(1);
+  pic_unmask_irq(4);
 
   pit_init(100);
   sleep_init();

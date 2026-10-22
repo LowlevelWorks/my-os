@@ -4,6 +4,7 @@
 .code64
 
 .extern keyboard_handler
+.extern serial_handler
 .extern pit_handle_irq_frame
 
 .extern scheduler_interrupt_switch_required
@@ -13,6 +14,7 @@
 
 .global invalid_opcode_handler
 .global keyboard_handle_irq
+.global serial_handle_irq
 .global pit_irq_handler
 
 
@@ -39,6 +41,43 @@ keyboard_handle_irq:
     and rsp, -16
 
     call keyboard_handler
+
+    mov rsp, rbp
+
+    mov al, 0x20
+    out 0x20, al
+
+    pop rbp
+    pop r11
+    pop r10
+    pop r9
+    pop r8
+    pop rdi
+    pop rsi
+    pop rdx
+    pop rcx
+    pop rax
+
+    iretq
+
+
+serial_handle_irq:
+    push rax
+    push rcx
+    push rdx
+    push rsi
+    push rdi
+    push r8
+    push r9
+    push r10
+    push r11
+    push rbp
+
+    cld
+    mov rbp, rsp
+    and rsp, -16
+
+    call serial_handler
 
     mov rsp, rbp
 

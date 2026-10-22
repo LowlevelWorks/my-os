@@ -17,12 +17,19 @@ static unsigned int shell_start_row = 0;
  *
  * VGA is drawn by absolute position (terminal_put_at). A serial terminal has
  * no absolute positioning, so the input line is mirrored with a stateless
- * repaint: CR to column 0, skip over the prompt, erase to end of line,
- * write the buffer, then place the cursor.
+ * repaint: climb back to the prompt row, erase to end of screen, re-emit
+ * prompt + input, then move the host cursor to its logical position.
  *
- * Limitation: this assumes the input fits on one terminal line
- * (prompt + input shorter than the host terminal width).
+ * Wrapped lines are handled explicitly: an explicit CRLF is written at every
+ * TERMINAL_WIDTH boundary so the host cursor is never left in pending-wrap
+ * state, which keeps the follow-up moves deterministic.
  */
+
+/*
+ * Rows below the prompt the host cursor currently sits on. Updated at the end
+ * of every sync and reset whenever a fresh prompt is printed.
+ */
+static unsigned int serial_cursor_row = 0;
 
 static void shell_serial_csi(unsigned int n, char cmd) {
   char digits[12];
@@ -44,21 +51,57 @@ static void shell_serial_csi(unsigned int n, char cmd) {
   serial_putc(cmd);
 }
 
-static void shell_serial_sync(void) {
-  serial_putc('\r');
-  shell_serial_csi(SHELL_PROMPT_COLUMN, 'C');
+static void shell_serial_write(const char *s) {
+  while (*s) {
+    serial_putc(*s++);
+  }
+}
 
-  /* Erase from the cursor to the end of the line. */
+static void shell_serial_sync(void) {
+  /* 1. Climb back to the prompt row. */
+  if (serial_cursor_row > 0) {
+    shell_serial_csi(serial_cursor_row, 'A');
+  }
+  serial_putc('\r');
+
+  /* 2. Erase from the prompt row downwards (clears any wrapped rows). */
   serial_putc('\x1b');
   serial_putc('[');
-  serial_putc('K');
+  serial_putc('J');
 
+  /* 3. Re-emit the prompt. */
+  shell_serial_write(SHELL_PROMPT);
+
+  /* 4. Emit input bytes, inserting an explicit CRLF at each wrap boundary. */
+  unsigned int col = SHELL_PROMPT_COLUMN;
   for (unsigned int i = 0; i < input_length; i++) {
     serial_putc(input_buffer[i]);
+    col++;
+    if (col == TERMINAL_WIDTH) {
+      serial_putc('\r');
+      serial_putc('\n');
+      col = 0;
+    }
   }
 
+  /*
+   * 5. Move the host cursor to the logical position. After step 4 the cursor
+   *    sits at (end_row, end_col) relative to the prompt; target_row is never
+   *    below end_row because cursor_position <= input_length.
+   */
+  unsigned int target_abs = SHELL_PROMPT_COLUMN + cursor_position;
+  unsigned int target_row = target_abs / TERMINAL_WIDTH;
+  unsigned int target_col = target_abs % TERMINAL_WIDTH;
+  unsigned int end_row = (SHELL_PROMPT_COLUMN + input_length) / TERMINAL_WIDTH;
+
+  if (end_row > target_row) {
+    shell_serial_csi(end_row - target_row, 'A');
+  }
   serial_putc('\r');
-  shell_serial_csi(SHELL_PROMPT_COLUMN + cursor_position, 'C');
+  if (target_col > 0) {
+    shell_serial_csi(target_col, 'C');
+  }
+  serial_cursor_row = target_row;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -67,10 +110,15 @@ void shell_init(void) {
   input_length = 0;
   cursor_position = 0;
   shell_start_row = terminal_get_row();
+  serial_cursor_row = 0;
   history_init();
 }
 
-void shell_print_prompt(void) { terminal_write(SHELL_PROMPT); }
+void shell_print_prompt(void) {
+  terminal_write(SHELL_PROMPT);
+  /* A new prompt lands at the start of a fresh host-terminal row. */
+  serial_cursor_row = 0;
+}
 
 static void shell_update_cursor(void) {
   unsigned int absolute_position = SHELL_PROMPT_COLUMN + cursor_position;
@@ -180,10 +228,17 @@ static void shell_process_command(void) {
 static void shell_submit(void) {
   input_buffer[input_length] = '\0';
   history_add(input_buffer);
-  cursor_position = input_length;
 
-  shell_update_cursor();
-  shell_serial_sync(); /* host cursor to the end of the input */
+  /*
+   * The keystroke-driven sync already parks the host cursor at the end of
+   * input, so only repaint if the user had moved the caret via arrows/Home.
+   * Repainting unconditionally would emit a second identical frame.
+   */
+  if (cursor_position != input_length) {
+    cursor_position = input_length;
+    shell_update_cursor();
+    shell_serial_sync();
+  }
 
   unsigned int absolute_position = SHELL_PROMPT_COLUMN + input_length;
 

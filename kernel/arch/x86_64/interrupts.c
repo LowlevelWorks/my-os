@@ -3,6 +3,7 @@
 
 extern void invalid_opcode_handler(void);
 extern void keyboard_handle_irq(void);
+extern void serial_handle_irq(void);
 
 static struct idt_entry idt[IDT_MAX_DESCRIPTORS];
 static struct idt_descriptor idt_descriptor;
@@ -43,6 +44,7 @@ void idt_init(void) {
   idt_set_gate(6, (uint64_t)invalid_opcode_handler, 0x8E);
   idt_set_gate(32, (uint64_t)pit_irq_handler, 0x8E);
   idt_set_gate(33, (uint64_t)keyboard_handle_irq, 0x8E);
+  idt_set_gate(36, (uint64_t)serial_handle_irq, 0x8E); /* IRQ4 = COM1 */
 
   load_idt();
 }
